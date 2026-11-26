@@ -39,4 +39,4 @@ cd GPTSwap
 
 ## 许可
 
-[MIT License](LICENSE)。保留既有开源代码的版权声明。本项目不隶属于 OpenAI。
+[MIT License](LICENSE)
