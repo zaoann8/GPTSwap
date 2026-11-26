@@ -1,0 +1,359 @@
+import SwiftUI
+import SwitcherCore
+
+struct ManageAccountsView: View {
+  @ObservedObject var model: AppModel
+  let onBack: () -> Void
+
+  @ViewState private var page: ManageAccountsPage = .accounts
+  @ViewState private var note = ""
+  @ViewState private var noteError: String?
+
+  var body: some View {
+    VStack(spacing: 0) {
+      PopoverHeader(
+        title: headerTitle,
+        backTitle: model.text("back"),
+        onBack: navigateBack
+      )
+
+      Divider()
+
+      switch page {
+      case .accounts:
+        accountList
+      case let .editNote(account):
+        editNote(account)
+      case let .remove(account):
+        removePage(account)
+      }
+    }
+  }
+
+  private var headerTitle: String {
+    switch page {
+    case .accounts:
+      model.text("accounts")
+    case .editNote:
+      model.text("edit_account_note")
+    case let .remove(account):
+      model.format("remove_title", account.confirmationTitle)
+    }
+  }
+
+  private func navigateBack() {
+    switch page {
+    case .accounts:
+      onBack()
+    case .remove, .editNote:
+      page = .accounts
+    }
+  }
+
+  private var accountList: some View {
+    VStack(spacing: 0) {
+      if model.accounts.isEmpty {
+        VStack(spacing: 7) {
+          Image(systemName: "person.crop.circle.badge.plus")
+            .font(.system(size: 24))
+            .foregroundStyle(.secondary)
+          Text(model.text("no_accounts"))
+            .font(.system(size: 12))
+            .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 24)
+      } else {
+        CappedScrollList(items: model.accounts, limit: 6) { items in
+          managedRows(items)
+        }
+      }
+
+      Divider()
+
+      VStack(alignment: .leading, spacing: 3) {
+        Button {
+          if model.isAddingAccount {
+            model.cancelAddingAccount()
+          } else {
+            model.addAccount()
+          }
+        } label: {
+          HStack(spacing: 7) {
+            Image(systemName: model.isAddingAccount ? "xmark" : "plus")
+              .frame(width: 14)
+            Text(model.text(model.isAddingAccount ? "cancel_add_account" : "add_account"))
+              .fixedSize()
+            Spacer(minLength: 4)
+            signInHint
+            if model.isAddingAccount {
+              ProgressView()
+                .controlSize(.small)
+            }
+          }
+          .font(.system(size: 12, weight: .medium))
+          .padding(.horizontal, 8)
+          .frame(height: 30)
+          .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(model.isMutating && !model.isAddingAccount)
+
+        Button {
+          model.refreshWeeklyUsage()
+        } label: {
+          HStack(spacing: 7) {
+            Image(systemName: "arrow.clockwise")
+              .frame(width: 14)
+            Text(model.text("refresh_accounts"))
+            Spacer()
+          }
+          .font(.system(size: 12, weight: .medium))
+          .padding(.horizontal, 8)
+          .frame(height: 30)
+          .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(model.isMutating || model.isAddingAccount)
+      }
+      .padding(5)
+    }
+  }
+
+  private func managedRows(_ accounts: [AccountProfile]) -> some View {
+    VStack(spacing: 2) {
+      ForEach(accounts) { account in
+        managedAccountRow(account)
+      }
+    }
+    .padding(5)
+  }
+
+  private var signInHint: some View {
+    let hint = model.text(model.isAddingAccount ? "sign_in_pending_hint" : "sign_in_hint")
+    return Text(hint)
+      .font(.system(size: 10.5))
+      .foregroundStyle(.secondary)
+      .lineLimit(1)
+      .truncationMode(.tail)
+      .help(hint)
+  }
+
+  private func editNote(_ account: AccountProfile) -> some View {
+    VStack(alignment: .leading, spacing: 8) {
+      TextField(model.text("account_note"), text: $note)
+        .textFieldStyle(.roundedBorder)
+        .accessibilityLabel(model.text("account_note"))
+      Text(model.text("account_note_hint"))
+        .font(.caption)
+        .foregroundStyle(.secondary)
+      if let noteError {
+        Text(noteError)
+          .font(.caption)
+          .foregroundStyle(.red)
+      }
+      HStack {
+        Spacer()
+        Button(model.text("cancel")) { page = .accounts }
+          .buttonStyle(.bordered)
+        Button(model.text("save_account_note")) {
+          Task {
+            do {
+              try await model.setAccountNote(id: account.id, note: note)
+              page = .accounts
+            } catch {
+              noteError = error.localizedDescription
+            }
+          }
+        }
+        .buttonStyle(.borderedProminent)
+      }
+    }
+    .padding(14)
+    .disabled(model.isMutating)
+  }
+
+  private func removePage(_ account: AccountProfile) -> some View {
+    VStack(alignment: .leading, spacing: 14) {
+      Text(model.text("remove_body"))
+        .font(.system(size: 11.5))
+        .foregroundStyle(.secondary)
+        .fixedSize(horizontal: false, vertical: true)
+
+      HStack(spacing: 7) {
+        Button(model.text("cancel")) {
+          page = .accounts
+        }
+        .buttonStyle(.bordered)
+        .frame(maxWidth: .infinity)
+
+        Button(model.text("remove"), role: .destructive) {
+          page = .accounts
+          Task { await model.removeAccount(id: account.id) }
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(.red)
+        .frame(maxWidth: .infinity)
+        .disabled(model.isMutating)
+      }
+    }
+    .padding(14)
+  }
+
+  private func managedAccountRow(_ account: AccountProfile) -> some View {
+    let title = account.preferredTitle
+    return HStack(spacing: 9) {
+      if model.accounts.count > 1 {
+        Image(systemName: "line.3.horizontal")
+          .foregroundStyle(.secondary)
+          .frame(width: 20, height: 28)
+          .contentShape(Rectangle())
+          .help(model.text("drag_to_reorder"))
+          .accessibilityLabel(model.text("drag_to_reorder"))
+          .draggable(account.id.uuidString)
+      }
+
+      Text(account.initials)
+        .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+        .frame(width: 28, height: 28)
+        .background(Color.primary.opacity(0.10), in: Circle())
+
+      VStack(alignment: .leading, spacing: 2) {
+        Text(verbatim: title)
+          .font(.system(size: 12, weight: .medium))
+          .lineLimit(1)
+          .truncationMode(.tail)
+          .help(title)
+        if let email = account.labeledEmail {
+          Text(verbatim: email)
+            .font(.system(size: 10.5))
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .help(email)
+        }
+        if hasOtherLoginWithSameEmail(account) {
+          Text(
+            model.usageStates[account.id]?.displayedUsage?.remainingPercent.map {
+              "\($0)% · " + model.text("weekly")
+            } ?? model.text("usage_unavailable")
+          )
+          .font(.system(size: 11).monospacedDigit())
+          .foregroundStyle(.secondary)
+          .lineLimit(1)
+          .truncationMode(.middle)
+          .help(account.accountID ?? account.id.uuidString)
+        }
+      }
+
+      Spacer(minLength: 5)
+
+      Button {
+        note = account.note ?? ""
+        noteError = nil
+        page = .editNote(account)
+      } label: {
+        Image(systemName: "pencil")
+          .frame(width: 25, height: 25)
+      }
+      .buttonStyle(.plain)
+      .help(model.text("edit_account_note"))
+      .accessibilityLabel(model.text("edit_account_note"))
+      .disabled(model.isMutating || model.isAddingAccount)
+
+      if account.id == model.activeAccountID {
+        Text(model.text("active"))
+          .font(.system(size: 10.5))
+          .foregroundStyle(.secondary)
+      } else {
+        Button(role: .destructive) {
+          page = .remove(account)
+        } label: {
+          Image(systemName: "trash")
+            .frame(width: 25, height: 25)
+        }
+        .buttonStyle(.plain)
+        .help(model.format("remove_title", account.confirmationTitle))
+        .accessibilityLabel(model.format("remove_title", account.confirmationTitle))
+        .disabled(model.isMutating)
+      }
+    }
+    .padding(.horizontal, 8)
+    .padding(.vertical, 6)
+    .frame(minHeight: 44)
+    .contentShape(Rectangle())
+    .dropDestination(for: String.self) { items, _ in
+      guard !model.isMutating, !model.isAddingAccount,
+        let raw = items.first, let sourceID = UUID(uuidString: raw),
+        sourceID != account.id,
+        model.accounts.contains(where: { $0.id == sourceID })
+      else { return false }
+      Task { await model.moveAccount(id: sourceID, to: account.id) }
+      return true
+    }
+  }
+
+  private func hasOtherLoginWithSameEmail(_ account: AccountProfile) -> Bool {
+    guard let email = account.email, !email.isEmpty else { return false }
+    return model.accounts.contains {
+      $0.id != account.id && $0.email?.caseInsensitiveCompare(email) == .orderedSame
+    }
+  }
+
+}
+
+private enum ManageAccountsPage {
+  case accounts
+  case remove(AccountProfile)
+  case editNote(AccountProfile)
+}
+
+struct PopoverHeader: View {
+  let title: String
+  let backTitle: String
+  let onBack: () -> Void
+
+  var body: some View {
+    HStack(spacing: 7) {
+      Button(action: onBack) {
+        Image(systemName: "chevron.left")
+          .font(.system(size: 11, weight: .semibold))
+          .frame(width: 27, height: 27)
+          .contentShape(Rectangle())
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel(backTitle)
+      .help(backTitle)
+
+      Text(title)
+        .font(.system(size: 13, weight: .semibold))
+        .fixedSize(horizontal: false, vertical: true)
+      Spacer()
+    }
+    .padding(.horizontal, 7)
+    .padding(.vertical, 5)
+  }
+}
+
+struct CappedScrollList<Item, Content: View>: View {
+  let items: [Item]
+  let limit: Int
+  var maxHeight: CGFloat? = nil
+  @ViewBuilder let content: ([Item]) -> Content
+
+  var body: some View {
+    if items.count <= limit && maxHeight == nil {
+      content(items)
+    } else {
+      // Intrinsic height matches the capped row count under zero-height probes.
+      content(Array(items.prefix(limit)))
+        .hidden()
+        .accessibilityHidden(true)
+        .frame(maxHeight: maxHeight)
+        .overlay {
+          ScrollView { content(items) }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+  }
+}
