@@ -37,15 +37,6 @@ cd GPTSwap
 ./scripts/run-tests.sh
 ```
 
-## 提交源码
-
-仓库不包含 App、ZIP 或用户数据。启用提交前及推送前的隐私检查：
-
-```sh
-git config core.hooksPath .githooks
-python3 scripts/check-repository-privacy.py
-```
-
 ## 许可
 
 [MIT License](LICENSE)。保留既有开源代码的版权声明。本项目不隶属于 OpenAI。
