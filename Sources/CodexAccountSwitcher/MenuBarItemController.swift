@@ -125,7 +125,8 @@ final class MenuBarItemController: NSObject, NSPopoverDelegate {
 
     displayTask?.cancel()
     displayTask = nil
-    var delay: TimeInterval? = rotates ? (showsResetTime ? 2 : 8) : nil
+    var delay: TimeInterval? = rotates
+      ? TimeInterval(model.settings.menuBarRotationInterval.rawValue) : nil
     if visible, let validation = display.nextValidationAt {
       let untilValidation = max(0.2, validation.timeIntervalSince(now))
       delay = min(delay ?? untilValidation, untilValidation)

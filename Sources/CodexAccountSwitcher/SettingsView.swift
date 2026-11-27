@@ -57,6 +57,21 @@ struct SettingsView: View {
                 .disabled(!model.settings.showsMenuBarPercentage)
             }
             rowDivider
+            settingRow("menu_bar_rotation_interval") {
+                Picker(model.text("menu_bar_rotation_interval"), selection: Binding(
+                    get: { model.settings.menuBarRotationInterval },
+                    set: { interval in Task { await model.setMenuBarRotationInterval(interval) } }
+                )) {
+                    ForEach(MenuBarRotationInterval.allCases, id: \.self) { interval in
+                        Text(model.format("rotation_seconds", String(interval.rawValue))).tag(interval)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .fixedSize()
+                .disabled(!model.settings.showsMenuBarPercentage || !model.settings.rotatesMenuBarQuota)
+            }
+            rowDivider
             settingRow("status_bar_usage_window") {
                 Picker(model.text("status_bar_usage_window"), selection: Binding(
                     get: { model.settings.statusBarUsageWindow },

@@ -117,6 +117,7 @@ struct BackgroundPollingAndSettingsTests {
             group.addTask { await fixture.model.setShowsMenuBarPercentage(false) }
             group.addTask { await fixture.model.setShowsDockIcon(false) }
             group.addTask { await fixture.model.setRotatesMenuBarQuota(false) }
+            group.addTask { await fixture.model.setMenuBarRotationInterval(.thirtySeconds) }
             group.addTask { await fixture.model.setShowsFiveHourUsage(true) }
             group.addTask { await fixture.model.setStatusBarUsageWindow(.weekly) }
             group.addTask { await fixture.model.setAutoResetEnabled(true) }
@@ -130,6 +131,8 @@ struct BackgroundPollingAndSettingsTests {
         #expect(persisted.showsMenuBarPercentage == false)
         #expect(persisted.showsDockIcon == false)
         #expect(persisted.rotatesMenuBarQuota == false)
+        #expect(persisted.menuBarRotationInterval == .thirtySeconds)
+        #expect(fixture.model.settings.menuBarRotationInterval == .thirtySeconds)
         #expect(persisted.showsFiveHourUsage == true)
         #expect(persisted.statusBarUsageWindow == .weekly)
         #expect(persisted.autoResetEnabled == true)

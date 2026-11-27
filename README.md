@@ -8,6 +8,7 @@ A lightweight macOS account switcher for Codex. Check remaining quota, switch ac
 - Keep your existing local workspaces and chat history.
 - View remaining quota for the 5-hour and 7-day windows, with the 5-hour window shown by default.
 - Rotate between remaining quota and the reported reset time in the menu bar: `22:09` today, or `11/28 22:09` on another day, in your local time zone. Readings refresh automatically in the background.
+- Choose a rotation interval of 5, 10, 15, 30, or 60 seconds in Settings. Each value is shown for 15 seconds by default.
 - Show subscription expiration and reset credit expiration separately.
 - Configure Dock visibility, launch at login, low-quota notifications, and display language.
 - Store saved logins locally without forwarding model requests or using a reverse proxy.

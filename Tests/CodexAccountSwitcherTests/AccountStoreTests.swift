@@ -391,6 +391,29 @@ struct AccountStoreTests {
         #expect(try permissions(fixture.support.appending(path: "usage-cache.json")) == 0o600)
     }
 
+    @Test(arguments: MenuBarRotationInterval.allCases)
+    func rotationIntervalsRoundTripWithoutChangingOtherSettings(interval: MenuBarRotationInterval) throws {
+        let original = AppSettings(
+            language: .italian, showsMenuBarPercentage: false, autoResetEnabled: true,
+            showsDockIcon: false, menuBarRotationInterval: interval)
+        let encoded = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(AppSettings.self, from: encoded)
+        #expect(decoded == original)
+    }
+
+    @Test(arguments: ["0", "-5", "2", "3600", "null", "\"invalid\""])
+    func invalidRotationIntervalFallsBackWithoutResettingExistingSettings(value: String) throws {
+        let json = """
+        {"language":"italian","showsDockIcon":false,"lowUsageThreshold":25,
+         "menuBarRotationInterval":\(value)}
+        """
+        let settings = try JSONDecoder().decode(AppSettings.self, from: Data(json.utf8))
+        #expect(settings.menuBarRotationInterval == .fifteenSeconds)
+        #expect(settings.language == .italian)
+        #expect(!settings.showsDockIcon)
+        #expect(settings.lowUsageThreshold == 25)
+    }
+
     @Test func persistsSettingsAndLoadsLegacyDefaults() async throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
@@ -406,6 +429,7 @@ struct AccountStoreTests {
         #expect(legacySettings.showsMenuBarPercentage)
         #expect(legacySettings.showsDockIcon)
         #expect(legacySettings.rotatesMenuBarQuota)
+        #expect(legacySettings.menuBarRotationInterval == .fifteenSeconds)
         #expect(!legacySettings.showsFiveHourUsage)
         #expect(!AppSettings.default.showsFiveHourUsage)
         #expect(legacySettings.statusBarUsageWindow == .fiveHour)
@@ -418,7 +442,8 @@ struct AccountStoreTests {
             showsFiveHourUsage: true,
             statusBarUsageWindow: .weekly,
             popoverAccountRows: .eight,
-            lowUsageThreshold: 15
+            lowUsageThreshold: 15,
+            menuBarRotationInterval: .sixtySeconds
         )
         try await fixture.store.saveSettings(updatedSettings)
         let reloadedStore = AccountStore(

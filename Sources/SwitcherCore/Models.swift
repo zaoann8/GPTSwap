@@ -106,11 +106,20 @@ public enum PopoverAccountRows: Int, Codable, CaseIterable, Sendable {
     case eight = 8
 }
 
+public enum MenuBarRotationInterval: Int, Codable, CaseIterable, Sendable {
+    case fiveSeconds = 5
+    case tenSeconds = 10
+    case fifteenSeconds = 15
+    case thirtySeconds = 30
+    case sixtySeconds = 60
+}
+
 public struct AppSettings: Codable, Equatable, Sendable {
     public var language: AppLanguage
     public var showsMenuBarPercentage: Bool
     public var showsDockIcon: Bool
     public var rotatesMenuBarQuota: Bool
+    public var menuBarRotationInterval: MenuBarRotationInterval
     public var showsFiveHourUsage: Bool
     public var statusBarUsageWindow: StatusBarUsageWindow
     public var autoResetEnabled: Bool
@@ -135,7 +144,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         popoverAccountRows: PopoverAccountRows = .three,
         lowUsageThreshold: Int? = nil,
         showsDockIcon: Bool = true,
-        rotatesMenuBarQuota: Bool = true
+        rotatesMenuBarQuota: Bool = true,
+        menuBarRotationInterval: MenuBarRotationInterval = .fifteenSeconds
     ) {
         self.language = language
         self.showsMenuBarPercentage = showsMenuBarPercentage
@@ -146,6 +156,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.lowUsageThreshold = lowUsageThreshold
         self.showsDockIcon = showsDockIcon
         self.rotatesMenuBarQuota = rotatesMenuBarQuota
+        self.menuBarRotationInterval = menuBarRotationInterval
     }
 
     public init(from decoder: any Decoder) throws {
@@ -157,6 +168,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
         ) ?? true
         showsDockIcon = try container.decodeIfPresent(Bool.self, forKey: .showsDockIcon) ?? true
         rotatesMenuBarQuota = try container.decodeIfPresent(Bool.self, forKey: .rotatesMenuBarQuota) ?? true
+        menuBarRotationInterval = (try? container.decode(
+            MenuBarRotationInterval.self, forKey: .menuBarRotationInterval
+        )) ?? .fifteenSeconds
         showsFiveHourUsage = try container.decodeIfPresent(
             Bool.self,
             forKey: .showsFiveHourUsage

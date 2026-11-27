@@ -611,6 +611,10 @@ open class AccountController {
         await enqueueSettingsUpdate { $0.rotatesMenuBarQuota = enabled }
     }
 
+    public func setMenuBarRotationInterval(_ interval: MenuBarRotationInterval) async {
+        await enqueueSettingsUpdate { $0.menuBarRotationInterval = interval }
+    }
+
     public func setShowsFiveHourUsage(_ enabled: Bool) async {
         await enqueueSettingsUpdate { $0.showsFiveHourUsage = enabled }
     }
