@@ -5,19 +5,19 @@ import SwitcherCore
 struct MenuBarQuotaPresentation {
   static let freshnessLimit: TimeInterval = 360
   let percentage: String
-  let countdown: String?
+  let resetTime: String?
   let expired: Bool
   let tooltip: String
   let nextValidationAt: Date?
 
   init(
     reading: StatusBarQuotaReading?, lastSuccess: Date?, isLoaded: Bool, now: Date,
-    language: AppLanguage
+    language: AppLanguage, timeZone: TimeZone = .autoupdatingCurrent
   ) {
     func text(_ key: String) -> String { L10n.string(key, language: language) }
     guard let reading, (0...100).contains(reading.percent) else {
       percentage = "--"
-      countdown = nil
+      resetTime = nil
       expired = false
       tooltip = text("quota_no_data")
       nextValidationAt = nil
@@ -31,7 +31,8 @@ struct MenuBarQuotaPresentation {
     }
     expired = deadline.map { $0 <= now } ?? false
     percentage = expired ? "--" : "\(reading.percent)%" + (fresh ? "" : "*")
-    countdown = fresh && !expired ? deadline.flatMap { Self.countdown(until: $0, now: now) } : nil
+    resetTime = fresh && !expired
+      ? deadline.flatMap { Self.resetTimestamp(for: $0, now: now, timeZone: timeZone) } : nil
 
     var details = [text(reading.window == .fiveHour ? "five_hour" : "weekly")]
     if expired {
@@ -47,13 +48,14 @@ struct MenuBarQuotaPresentation {
       case .italian: locale = Locale(identifier: "it_IT")
       case .system: locale = .autoupdatingCurrent
       }
-      let timestamp = deadline.formatted(.dateTime.month().day().hour().minute().locale(locale))
+      let timestamp = deadline.formatted(
+        Date.FormatStyle(date: .abbreviated, time: .shortened, locale: locale, timeZone: timeZone))
       details.append(text("resets") + " " + timestamp)
     } else {
       details.append(text("quota_no_reset_time"))
     }
     if !fresh { details.append(text("quota_cached")) }
-    if countdown != nil { details.append(text("quota_countdown_units")) }
+    if resetTime != nil { details.append(text("quota_reset_time_format")) }
     tooltip = details.joined(separator: "\n")
 
     var validations: [Date] = []
@@ -64,13 +66,19 @@ struct MenuBarQuotaPresentation {
     nextValidationAt = validations.min()
   }
 
-  static func countdown(until deadline: Date, now: Date) -> String? {
+  static func resetTimestamp(
+    for deadline: Date, now: Date, timeZone: TimeZone = .autoupdatingCurrent
+  ) -> String? {
     let remaining = deadline.timeIntervalSince(now)
     // Reject implausible/overflowing values instead of clamping them into fake data.
     guard remaining.isFinite, remaining > 0, remaining <= 366 * 86_400 else { return nil }
-    let minutes = Int(ceil(remaining / 60))
-    if minutes < 60 { return "\(minutes)m" }
-    if minutes < 1_440 { return "\(minutes / 60)h" + String(format: "%02d", minutes % 60) }
-    return "\(minutes / 1_440)d" + String(format: "%02d", minutes / 60 % 24)
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = timeZone
+    let components = calendar.dateComponents([.month, .day, .hour, .minute], from: deadline)
+    guard let month = components.month, let day = components.day,
+      let hour = components.hour, let minute = components.minute else { return nil }
+    let clock = String(format: "%02d:%02d", hour, minute)
+    if calendar.isDate(deadline, inSameDayAs: now) { return clock }
+    return String(format: "%02d/%02d %@", month, day, clock)
   }
 }

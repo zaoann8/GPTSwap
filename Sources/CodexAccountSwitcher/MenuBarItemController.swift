@@ -61,7 +61,7 @@ final class MenuBarItemController: NSObject, NSPopoverDelegate {
   private var localClickMonitor: Any?
   private var globalClickMonitor: Any?
   private var displayTask: Task<Void, Never>?
-  private var showsCountdown = false
+  private var showsResetTime = false
   private var cycleKey: QuotaCycleKey?
   private var lastExpiredRefreshKey: QuotaCycleKey?
 
@@ -98,7 +98,7 @@ final class MenuBarItemController: NSObject, NSPopoverDelegate {
     }
     if cycleKey != key {
       cycleKey = key
-      showsCountdown = false
+      showsResetTime = false
       lastExpiredRefreshKey = nil
     }
     let state = model.activeAccountID.flatMap { model.usageStates[$0] }
@@ -110,11 +110,11 @@ final class MenuBarItemController: NSObject, NSPopoverDelegate {
       language: model.settings.language
     )
     let visible = model.settings.showsMenuBarPercentage
-    let rotates = visible && model.settings.rotatesMenuBarQuota && display.countdown != nil
-    if !rotates { showsCountdown = false }
-    let text = showsCountdown ? display.countdown : display.percentage
+    let rotates = visible && model.settings.rotatesMenuBarQuota && display.resetTime != nil
+    if !rotates { showsResetTime = false }
+    let text = showsResetTime ? display.resetTime : display.percentage
     // These strings measure a stable width only; displayed values always come from real data.
-    let reserved = rotates ? ["100%*", "23h59", display.percentage, display.countdown ?? ""] : []
+    let reserved = rotates ? ["100%*", display.percentage, display.resetTime ?? ""] : []
     let label = MenuBarItemLayout(text: visible ? text : nil, reservedTexts: reserved)
     if label.text != contentView.label.text || label.width != contentView.label.width {
       contentView.label = label
@@ -125,7 +125,7 @@ final class MenuBarItemController: NSObject, NSPopoverDelegate {
 
     displayTask?.cancel()
     displayTask = nil
-    var delay: TimeInterval? = rotates ? (showsCountdown ? 2 : 8) : nil
+    var delay: TimeInterval? = rotates ? (showsResetTime ? 2 : 8) : nil
     if visible, let validation = display.nextValidationAt {
       let untilValidation = max(0.2, validation.timeIntervalSince(now))
       delay = min(delay ?? untilValidation, untilValidation)
@@ -134,7 +134,7 @@ final class MenuBarItemController: NSObject, NSPopoverDelegate {
       displayTask = Task { [weak self] in
         do { try await Task.sleep(for: .seconds(delay)) } catch { return }
         guard !Task.isCancelled, let self else { return }
-        if rotates { self.showsCountdown.toggle() }
+        if rotates { self.showsResetTime.toggle() }
         self.refresh()
       }
     }

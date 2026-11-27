@@ -30,9 +30,10 @@ struct MenuBarItemLayoutTests {
         #expect(hidden.iconFrame(in: bounds).minX == MenuBarItemLayout.sidePadding)
     }
 
-    @Test func rotatedValuesReserveTheSameNarrowWidth() throws {
-        let samples = ["0%", "79%", "100%", "59m", "4h59", "23h59", "6d23"]
-        let reserved = ["100%*", "23h59"] + samples
+    @Test(arguments: ["22:09", "11/28 22:09"])
+    func rotatedValuesReserveTheSameNarrowWidth(resetTime: String) throws {
+        let samples = ["0%", "79%", "100%", resetTime]
+        let reserved = ["100%*"] + samples
         let widths = samples.map { MenuBarItemLayout(text: $0, reservedTexts: reserved).width }
         #expect(Set(widths).count == 1)
         for sample in samples {
@@ -42,5 +43,11 @@ struct MenuBarItemLayoutTests {
             #expect(text.minX == layout.iconFrame(in: bounds).maxX)
             #expect(text.maxX <= bounds.maxX - MenuBarItemLayout.sidePadding)
         }
+    }
+
+    @Test func sameDayTimeDoesNotReserveSpaceForAnUnnecessaryDate() {
+        let sameDay = MenuBarItemLayout(text: "22:09", reservedTexts: ["100%*", "22:09"])
+        let anotherDay = MenuBarItemLayout(text: "11/28 22:09", reservedTexts: ["100%*", "11/28 22:09"])
+        #expect(sameDay.width < anotherDay.width)
     }
 }
