@@ -2,22 +2,18 @@ import AppKit
 import SwiftUI
 import SwitcherCore
 
-/// A status button uses the exact width of its icon and measured percentage.
+/// A status button uses only the width of its icon and currently visible text.
 struct MenuBarItemLayout {
   static let iconSide: CGFloat = 17.5
-  static let sidePadding: CGFloat = 1
 
   let text: String?
-  private let reservedTexts: [String]
 
   init(remainingPercent: Int?, showsPercentage: Bool = true) {
     text = (showsPercentage ? remainingPercent : nil).map { "\($0)%" }
-    reservedTexts = []
   }
 
-  init(text: String?, reservedTexts: [String] = []) {
+  init(text: String?) {
     self.text = text
-    self.reservedTexts = reservedTexts
   }
 
   var textAttributes: [NSAttributedString.Key: Any] {
@@ -28,14 +24,13 @@ struct MenuBarItemLayout {
   }
 
   var width: CGFloat {
-    let candidates = text.map { [$0] + reservedTexts } ?? []
-    let textWidth = candidates.map { $0.size(withAttributes: textAttributes).width }.max() ?? 0
-    return ceil(Self.iconSide + textWidth) + 2 * Self.sidePadding
+    let textWidth = text?.size(withAttributes: textAttributes).width ?? 0
+    return ceil(Self.iconSide + textWidth)
   }
 
   func iconFrame(in bounds: NSRect) -> NSRect {
     NSRect(
-      x: bounds.midX - width / 2 + Self.sidePadding,
+      x: bounds.minX,
       y: bounds.midY - Self.iconSide / 2,
       width: Self.iconSide,
       height: Self.iconSide
@@ -113,9 +108,8 @@ final class MenuBarItemController: NSObject, NSPopoverDelegate {
     let rotates = visible && model.settings.rotatesMenuBarQuota && display.resetTime != nil
     if !rotates { showsResetTime = false }
     let text = showsResetTime ? display.resetTime : display.percentage
-    // These strings measure a stable width only; displayed values always come from real data.
-    let reserved = rotates ? ["100%*", display.percentage, display.resetTime ?? ""] : []
-    let label = MenuBarItemLayout(text: visible ? text : nil, reservedTexts: reserved)
+    // Both phases keep the same app icon; only the visible text determines the width.
+    let label = MenuBarItemLayout(text: visible ? text : nil)
     if label.text != contentView.label.text || label.width != contentView.label.width {
       contentView.label = label
       item.length = label.width

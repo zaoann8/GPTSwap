@@ -6,7 +6,7 @@ SCRIPT_DIR=${0:A:h}
 PROJECT_DIR=${SCRIPT_DIR:h}
 RESOURCE_BUNDLE="CodexAccountSwitcher_CodexAccountSwitcher.bundle"
 APP_ICON="$PROJECT_DIR/assets/AppIcon.icns"
-APP_VERSION=${RELEASE_VERSION:-1.0.15}
+APP_VERSION=${RELEASE_VERSION:-1.0.16}
 SWIFT_EXECUTABLE=${SWITCHER_SWIFT:-swift}
 case "${1:-}" in
     ''|--personal) ;;

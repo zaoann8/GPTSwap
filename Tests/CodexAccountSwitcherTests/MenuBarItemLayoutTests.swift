@@ -5,7 +5,7 @@ import Testing
 @MainActor
 struct MenuBarItemLayoutTests {
     @Test(arguments: [0, 9, 79, 100])
-    func fullPercentageFitsBesideTheIconWithNarrowMargins(percent: Int) throws {
+    func fullPercentageFitsBesideTheIconWithoutSideMargins(percent: Int) throws {
         let item = MenuBarItemLayout(remainingPercent: percent)
         let bounds = NSRect(x: 0, y: 0, width: item.width, height: 24)
         let icon = item.iconFrame(in: bounds)
@@ -13,10 +13,10 @@ struct MenuBarItemLayoutTests {
 
         #expect(item.text == "\(percent)%")
         #expect(icon.width == MenuBarItemLayout.iconSide)
-        #expect(icon.minX == MenuBarItemLayout.sidePadding)
+        #expect(icon.minX == bounds.minX)
         #expect(text.minX == icon.maxX)
-        #expect(bounds.maxX - text.maxX >= MenuBarItemLayout.sidePadding)
-        #expect(bounds.maxX - text.maxX < MenuBarItemLayout.sidePadding + 1)
+        #expect(bounds.maxX - text.maxX >= 0)
+        #expect(bounds.maxX - text.maxX < 1)
     }
 
     @Test func undefinedAndHiddenPercentageKeepTheCompactIcon() {
@@ -26,28 +26,44 @@ struct MenuBarItemLayoutTests {
 
         #expect(hidden.textFrame(in: bounds) == nil)
         #expect(unavailable.width == hidden.width)
-        #expect(hidden.width == ceil(MenuBarItemLayout.iconSide) + 2 * MenuBarItemLayout.sidePadding)
-        #expect(hidden.iconFrame(in: bounds).minX == MenuBarItemLayout.sidePadding)
+        #expect(hidden.width == ceil(MenuBarItemLayout.iconSide))
+        #expect(hidden.iconFrame(in: bounds).minX == bounds.minX)
     }
 
-    @Test(arguments: ["22:09", "11/28 22:09"])
-    func rotatedValuesReserveTheSameNarrowWidth(resetTime: String) throws {
-        let samples = ["0%", "79%", "100%", resetTime]
-        let reserved = ["100%*"] + samples
-        let widths = samples.map { MenuBarItemLayout(text: $0, reservedTexts: reserved).width }
-        #expect(Set(widths).count == 1)
-        for sample in samples {
-            let layout = MenuBarItemLayout(text: sample, reservedTexts: reserved)
-            let bounds = NSRect(x: 0, y: 0, width: layout.width, height: 24)
-            let text = try #require(layout.textFrame(in: bounds))
-            #expect(text.minX == layout.iconFrame(in: bounds).maxX)
-            #expect(text.maxX <= bounds.maxX - MenuBarItemLayout.sidePadding)
-        }
+    @Test(arguments: ["0%", "96%", "100%", "79%*", "--", "22:09", "11/28 22:09"])
+    func eachPhaseUsesOnlyItsVisibleTextWidth(sample: String) throws {
+        let layout = MenuBarItemLayout(text: sample)
+        let bounds = NSRect(x: 0, y: 0, width: layout.width, height: 24)
+        let icon = layout.iconFrame(in: bounds)
+        let text = try #require(layout.textFrame(in: bounds))
+        let measuredTextWidth = sample.size(withAttributes: layout.textAttributes).width
+
+        #expect(layout.text == sample)
+        #expect(layout.width == ceil(MenuBarItemLayout.iconSide + measuredTextWidth))
+        #expect(icon.width == MenuBarItemLayout.iconSide)
+        #expect(icon.minX == bounds.minX)
+        #expect(text.minX == icon.maxX)
+        #expect(bounds.maxX - text.maxX >= 0)
+        #expect(bounds.maxX - text.maxX < 1)
     }
 
-    @Test func sameDayTimeDoesNotReserveSpaceForAnUnnecessaryDate() {
-        let sameDay = MenuBarItemLayout(text: "22:09", reservedTexts: ["100%*", "22:09"])
-        let anotherDay = MenuBarItemLayout(text: "11/28 22:09", reservedTexts: ["100%*", "11/28 22:09"])
-        #expect(sameDay.width < anotherDay.width)
+    @Test func rotationShrinksBackToThePercentageWithoutRememberingTheLongTime() {
+        var layout = MenuBarItemLayout(text: "96%")
+        let percentageWidth = layout.width
+        layout = MenuBarItemLayout(text: "11/28 22:09")
+        #expect(layout.width > percentageWidth)
+        layout = MenuBarItemLayout(text: "96%")
+        #expect(layout.width == percentageWidth)
+        #expect(MenuBarItemLayout(text: "22:09").width < MenuBarItemLayout(text: "11/28 22:09").width)
+        #expect(MenuBarItemLayout(text: "0%").width < MenuBarItemLayout(text: "100%").width)
+    }
+
+    @Test func extraHostSpaceDoesNotIntroduceALeadingMargin() throws {
+        let layout = MenuBarItemLayout(text: "22:09")
+        let bounds = NSRect(x: 5, y: 0, width: layout.width + 16, height: 24)
+        let icon = layout.iconFrame(in: bounds)
+        let text = try #require(layout.textFrame(in: bounds))
+        #expect(icon.minX == bounds.minX)
+        #expect(text.minX == icon.maxX)
     }
 }
