@@ -2,18 +2,21 @@ import AppKit
 import SwiftUI
 import SwitcherCore
 
-/// A status button uses only the width of its icon and currently visible text.
+/// Rotation reserves the wider value while keeping the icon and outer margins unchanged.
 struct MenuBarItemLayout {
   static let iconSide: CGFloat = 17.5
 
   let text: String?
+  private let reservedTexts: [String]
 
   init(remainingPercent: Int?, showsPercentage: Bool = true) {
     text = (showsPercentage ? remainingPercent : nil).map { "\($0)%" }
+    reservedTexts = []
   }
 
-  init(text: String?) {
+  init(text: String?, reservedTexts: [String] = []) {
     self.text = text
+    self.reservedTexts = reservedTexts
   }
 
   var textAttributes: [NSAttributedString.Key: Any] {
@@ -24,7 +27,8 @@ struct MenuBarItemLayout {
   }
 
   var width: CGFloat {
-    let textWidth = text?.size(withAttributes: textAttributes).width ?? 0
+    let candidates = text.map { [$0] + reservedTexts } ?? []
+    let textWidth = candidates.map { $0.size(withAttributes: textAttributes).width }.max() ?? 0
     return ceil(Self.iconSide + textWidth)
   }
 
@@ -108,8 +112,10 @@ final class MenuBarItemController: NSObject, NSPopoverDelegate {
     let rotates = visible && model.settings.rotatesMenuBarQuota && display.resetTime != nil
     if !rotates { showsResetTime = false }
     let text = showsResetTime ? display.resetTime : display.percentage
-    // Both phases keep the same app icon; only the visible text determines the width.
-    let label = MenuBarItemLayout(text: visible ? text : nil)
+    // Reserve both phases so rotation changes the text without moving adjacent items.
+    // The sample only measures the widest percentage; it is never displayed as quota.
+    let reserved = rotates ? ["100%*", display.percentage, display.resetTime ?? ""] : []
+    let label = MenuBarItemLayout(text: visible ? text : nil, reservedTexts: reserved)
     if label.text != contentView.label.text || label.width != contentView.label.width {
       contentView.label = label
       item.length = label.width
